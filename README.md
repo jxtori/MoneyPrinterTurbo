@@ -146,32 +146,67 @@ git clone https://github.com/harry0703/MoneyPrinterTurbo.git
 - 按照 `config.toml` 文件中的说明，配置好 `pexels_api_keys` 和 `llm_provider`，并根据 llm_provider 对应的服务商，配置相关的
   API Key
 - 如果希望使用推荐的大模型平台，也可以将 `llm_provider` 设置为 `aihubmix`，并填写对应的 API Key。
+- 不要把真实 API Key 写进代码、Dockerfile 或 `docker-compose.yml`。`config.toml` 是本地敏感配置，默认不会提交到 Git。
 
 ### Docker部署 🐳
 
-#### ① 启动Docker
+Docker Compose 会同时启动 WebUI 和 API 服务：
 
-如果未安装 Docker，请先安装 https://www.docker.com/products/docker-desktop/
+- WebUI: http://127.0.0.1:8501
+- API 文档: http://127.0.0.1:8080/docs
 
-如果是Windows系统，请参考微软的文档：
+#### Windows 本地部署
 
-1. https://learn.microsoft.com/zh-cn/windows/wsl/install
-2. https://learn.microsoft.com/zh-cn/windows/wsl/tutorials/wsl-containers
+1. 安装 Docker Desktop: https://www.docker.com/products/docker-desktop/
+2. 安装时选择 WSL 2 backend。WSL 相关说明：
+   - https://learn.microsoft.com/zh-cn/windows/wsl/install
+   - https://learn.microsoft.com/zh-cn/windows/wsl/tutorials/wsl-containers
+3. 重启电脑后，在 PowerShell 中验证：
 
-```shell
-cd MoneyPrinterTurbo
-docker-compose up
+```powershell
+docker --version
+docker compose version
 ```
 
-> 注意：最新版的docker安装时会自动以插件的形式安装docker compose，启动命令调整为docker compose up
+4. 克隆项目并生成本地配置：
 
-#### ② 访问Web界面
+```powershell
+git clone https://github.com/harry0703/MoneyPrinterTurbo.git
+cd MoneyPrinterTurbo
+Copy-Item config.example.toml config.toml
+New-Item -ItemType Directory -Force storage
+```
 
-打开浏览器，访问 http://127.0.0.1:8501
+5. 编辑 `config.toml`，按需填写本地 API Key。不要提交 `config.toml`。
+6. 启动服务：
 
-#### ③ 访问API文档
+```powershell
+docker compose up --build
+```
 
-打开浏览器，访问 http://0.0.0.0:8080/docs 或者 http://0.0.0.0:8080/redoc
+#### Linux VPS 部署
+
+1. 安装 Docker Engine 和 Docker Compose plugin，参考官方文档：
+   - https://docs.docker.com/engine/install/
+   - https://docs.docker.com/compose/install/linux/
+2. 克隆项目并生成本地配置：
+
+```shell
+git clone https://github.com/harry0703/MoneyPrinterTurbo.git
+cd MoneyPrinterTurbo
+cp config.example.toml config.toml
+mkdir -p storage
+```
+
+3. 编辑 `config.toml`，按需填写本地 API Key。不要提交 `config.toml`。
+4. 如果需要公网访问，开放 `8501` 和 `8080` 端口，或使用 Nginx/Caddy 等反向代理。
+5. 后台启动服务：
+
+```shell
+docker compose up -d --build
+```
+
+`storage/` 是视频生成、缓存和任务文件的运行产物目录；`config.toml` 是本地敏感配置文件。两者默认不提交到 Git。
 
 ### 手动部署 📦
 
