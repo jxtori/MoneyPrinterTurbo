@@ -146,8 +146,11 @@ git clone https://github.com/harry0703/MoneyPrinterTurbo.git
 - 按照 `config.toml` 文件中的说明，配置好 `pexels_api_keys` 和 `llm_provider`，并根据 llm_provider 对应的服务商，配置相关的
   API Key
 - 如果希望使用推荐的大模型平台，也可以将 `llm_provider` 设置为 `aihubmix`，并填写对应的 API Key。
+- 不要把真实 API Key 写进代码、Dockerfile、Compose 文件或文档示例。`config.toml` 是本地敏感配置，默认不会提交到 Git。
 
 ### Docker部署 🐳
+
+> Windows 本地部署不强制需要 Docker。若电脑 BIOS 虚拟化被锁、Docker Desktop 无法启动，请直接使用下面的“Windows 非 Docker 部署”。
 
 #### ① 启动Docker
 
@@ -171,7 +174,92 @@ docker-compose up
 
 #### ③ 访问API文档
 
-打开浏览器，访问 http://0.0.0.0:8080/docs 或者 http://0.0.0.0:8080/redoc
+打开浏览器，访问 http://127.0.0.1:8080/docs 或者 http://127.0.0.1:8080/redoc
+
+### Windows 非 Docker 部署 🪟
+
+该方式适合 Windows 10/11、本机无法启动 Docker Desktop、或不想使用 Docker 的用户。
+
+#### ① 安装 uv 和 Python 3.11
+
+项目要求 Python `>=3.11,<3.13`。如果系统默认 Python 是 3.13/3.14，请不要直接使用系统 Python，建议让 `uv` 管理 Python 3.11。
+
+```powershell
+winget install astral-sh.uv
+uv --version
+uv python install 3.11
+```
+
+#### ② 克隆项目并安装依赖
+
+```powershell
+git clone https://github.com/harry0703/MoneyPrinterTurbo.git
+cd MoneyPrinterTurbo
+uv sync --frozen --python 3.11
+```
+
+#### ③ 生成本地配置
+
+```powershell
+Copy-Item config.example.toml config.toml
+New-Item -ItemType Directory -Force storage
+```
+
+编辑 `config.toml`，按需填写：
+
+- `llm_provider` 和对应服务商的 API Key
+- `pexels_api_keys` 或 `pixabay_api_keys`
+- 如果 ffmpeg 不在 PATH，设置 `ffmpeg_path = "C:\\your\\path\\ffmpeg.exe"`
+- 如果 ImageMagick 自动检测失败，设置 `imagemagick_path = "C:\\Program Files\\ImageMagick-...\\magick.exe"`
+
+`config.toml`、`.env`、`storage/` 都是本地运行文件，不要提交到 Git。
+
+#### ④ 检查 ffmpeg 和 ImageMagick
+
+```powershell
+ffmpeg -version
+magick -version
+```
+
+如果 `ffmpeg` 无法识别，可以安装：
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+也可以从 https://www.gyan.dev/ffmpeg/builds/ 下载并解压，然后在 `config.toml` 的 `[app]` 中设置 `ffmpeg_path`。
+
+Windows 上 ImageMagick 建议安装 static 版本。如果 `magick -version` 正常但生成字幕仍报 ImageMagick 路径错误，请在 `config.toml` 的 `[app]` 中设置 `imagemagick_path`。
+
+#### ⑤ 启动 WebUI 和 API
+
+打开两个 PowerShell 窗口，分别执行：
+
+```powershell
+.\start_api.ps1
+```
+
+```powershell
+.\start_webui.ps1
+```
+
+访问：
+
+- WebUI: http://127.0.0.1:8501
+- API 文档: http://127.0.0.1:8080/docs
+
+`start_webui.ps1` 默认使用 `127.0.0.1:8501`。如果 8501 被占用，会在 8502-8599 中选择可用端口。如需局域网访问，可以先执行：
+
+```powershell
+$env:MPT_WEBUI_HOST = "0.0.0.0"
+.\start_webui.ps1
+```
+
+如果本机 BIOS 虚拟化被锁，Windows 非 Docker 部署不需要 Docker Desktop，可以在 Windows“设置 > 应用 > 已安装的应用”中卸载 Docker Desktop，或执行：
+
+```powershell
+winget uninstall --id Docker.DockerDesktop -e
+```
 
 ### 手动部署 📦
 
@@ -188,7 +276,7 @@ docker-compose up
 git clone https://github.com/harry0703/MoneyPrinterTurbo.git
 cd MoneyPrinterTurbo
 uv python install 3.11
-uv sync --frozen
+uv sync --frozen --python 3.11
 ```
 
 如果你暂时不使用 `uv`，也可以继续使用 `venv + pip`
@@ -212,6 +300,14 @@ pip install -r requirements.txt
     ImageMagick-7.1.1-32-Q16-x64-**static**.exe
   - 安装下载好的 ImageMagick，**注意不要修改安装路径**
   - 修改 `配置文件 config.toml` 中的 `imagemagick_path` 为你的 **实际安装路径**
+
+Windows 还建议确认 ffmpeg 可用：
+
+```powershell
+ffmpeg -version
+```
+
+如果命令不可用，可以执行 `winget install Gyan.FFmpeg`，或手动下载 ffmpeg 后在 `config.toml` 中设置 `ffmpeg_path`。
 
 - MacOS:
   ```shell
@@ -240,6 +336,12 @@ pip install -r requirements.txt
 `webui.bat` 会优先使用项目 `.venv` 或一键包内置 Python；如果没有找到项目 Python，但已安装 `uv`，会自动切换为 `uv run streamlit`。
 如需允许局域网内其他设备访问 WebUI，可以先执行 `set MPT_WEBUI_HOST=0.0.0.0`，再运行 `webui.bat`。
 
+如果使用 PowerShell，也可以执行：
+
+```powershell
+.\start_webui.ps1
+```
+
 ###### MacOS or Linux
 
 ```shell
@@ -264,6 +366,12 @@ uv run python main.py
 
 ```shell
 python main.py
+```
+
+Windows PowerShell 也可以执行：
+
+```powershell
+.\start_api.ps1
 ```
 
 ## 特别感谢 🙏
